@@ -34,10 +34,15 @@ const App: React.FC = () => {
     let animationFrameId: number;
 
     const animate = () => {
-      if (audioRef.current && !audioRef.current.paused) {
-        setCurrentTime(audioRef.current.currentTime);
-        animationFrameId = requestAnimationFrame(animate);
+      if (audioRef.current) {
+        // 只有在未暂停时更新时间，避免冲突
+        if (!audioRef.current.paused) {
+           setCurrentTime(audioRef.current.currentTime);
+        }
       }
+      // 关键修复：无论是否 paused，只要 isPlaying 为 true，都要保持循环运行
+      // 这样当歌曲切换（短暂 loading/paused）完成后，循环能继续更新时间
+      animationFrameId = requestAnimationFrame(animate);
     };
 
     if (isPlaying) {
@@ -99,8 +104,8 @@ const App: React.FC = () => {
   }, [playMode]);
 
   const handlePrev = () => {
-    // 如果当前时间 > 10 秒，则重播当前歌曲而不是切换到上一首
-    if (audioRef.current && audioRef.current.currentTime > 10) {
+    // 如果当前时间 > 3 秒，则重播当前歌曲而不是切换到上一首
+    if (audioRef.current && audioRef.current.currentTime > 3) {
       audioRef.current.currentTime = 0;
       setCurrentTime(0); // 手动更新状态以获得即时反馈
       return;
@@ -133,6 +138,11 @@ const App: React.FC = () => {
 
   // 当歌曲索引改变时，加载新歌曲
   useEffect(() => {
+    // 修复：切换歌曲时立即重置时间和时长
+    // 防止显示上一首歌曲的残留进度，导致 ProgressBar 或歌词异常
+    setCurrentTime(0);
+    setDuration(0);
+
     if (audioRef.current) {
       audioRef.current.src = currentSong.url;
       audioRef.current.load();
