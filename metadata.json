@@ -1,0 +1,5 @@
+{
+  "name": "Revelation Music Player",
+  "description": "一个使用 React 和 Tailwind CSS 构建的现代响应式音乐播放器，具有播放列表管理、歌词支持和沉浸式 UI 设计。",
+  "requestFramePermissions": []
+}
