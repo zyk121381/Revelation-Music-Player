@@ -193,9 +193,9 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
 
       {/* 可视化效果（仅限桌面端） */}
-      {/* 更新为 bottom-[126px] 以匹配底部的实际高度 */}
+      {/* 更新为 bottom-[142.8px] 以匹配底部的实际高度 */}
       <div 
-        className="hidden md:block absolute bottom-[124px] left-0 right-0 h-[35vh] z-[5] pointer-events-none opacity-80"
+        className="hidden md:block absolute bottom-[142.8px] left-0 right-0 h-[35vh] z-[5] pointer-events-none opacity-80"
         style={{ maskImage: 'linear-gradient(to bottom, transparent, black 10%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent, black 10%)' }}
       >
          <AudioVisualizer audioRef={audioRef} isPlaying={isPlaying} />
