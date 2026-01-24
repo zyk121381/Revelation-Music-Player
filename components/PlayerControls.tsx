@@ -1,5 +1,5 @@
 import React from 'react';
-import { Play, Pause, SkipBack, SkipForward, Repeat, Shuffle, Repeat1 } from 'lucide-react';
+import { Play, Pause, SkipBack, SkipForward, Shuffle, Repeat1 } from 'lucide-react';
 import { PlayMode } from '../types';
 
 interface PlayerControlsProps {
@@ -8,7 +8,6 @@ interface PlayerControlsProps {
   onNext: () => void;
   onPrev: () => void;
   playMode: PlayMode;
-  onToggleMode: () => void;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -17,29 +16,9 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   onNext,
   onPrev,
   playMode,
-  onToggleMode,
 }) => {
-  const getModeIcon = () => {
-    switch (playMode) {
-      case PlayMode.LOOP:
-        return <Repeat1 size={20} className="text-green-400" />;
-      case PlayMode.SHUFFLE:
-        return <Shuffle size={20} className="text-green-400" />;
-      default:
-        return <Repeat size={20} className="text-gray-400 hover:text-white" />;
-    }
-  };
-
   return (
     <div className="flex items-center justify-center gap-4 sm:gap-6">
-      <button 
-        onClick={onToggleMode}
-        className="p-2 transition-colors duration-200 hidden sm:block hover:bg-white/10 rounded-full"
-        title="切换播放模式"
-      >
-        {getModeIcon()}
-      </button>
-
       {/* 移动端对称占位符，用于平衡右侧指示器 */}
       <div className="sm:hidden w-5" />
 
