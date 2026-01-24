@@ -44,6 +44,34 @@
         -ms-overflow-style: none;  /* IE 和 Edge */
         scrollbar-width: none;  /* Firefox */
       }
+
+      /* 歌词切换动画: 上一句上浮淡出 */
+      @keyframes lyric-up-out {
+        0% { transform: translateY(0) scale(1); opacity: 1; }
+        100% { transform: translateY(-24px) scale(0.95); opacity: 0; }
+      }
+      
+      /* 歌词切换动画: 当前句从下方上浮，放大并高亮 (模拟从下一句位置移动上来) */
+      @keyframes lyric-up-current {
+        0% { transform: translateY(24px) scale(0.95); opacity: 0.7; color: #9ca3af; }
+        100% { transform: translateY(0) scale(1); opacity: 1; color: #4ade80; }
+      }
+      
+      /* 歌词切换动画: 下一句从更下方进入 */
+      @keyframes lyric-up-next {
+        0% { transform: translateY(24px); opacity: 0; }
+        100% { transform: translateY(0); opacity: 0.7; }
+      }
+
+      .animate-lyric-out {
+        animation: lyric-up-out 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+      }
+      .animate-lyric-current {
+        animation: lyric-up-current 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+      }
+      .animate-lyric-next {
+        animation: lyric-up-next 0.4s cubic-bezier(0.2, 0, 0.2, 1) forwards;
+      }
     </style>
   <script type="importmap">
 {
@@ -59,6 +87,6 @@
 </head>
   <body class="bg-gray-900 text-white overflow-hidden">
     <div id="root"></div>
-  <script type="module" src="/index.tsx"></script>
-</body>
+    <script type="module" src="/index.tsx"></script>
+  </body>
 </html>
