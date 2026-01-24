@@ -7,7 +7,7 @@ import { SongList } from './components/SongList';
 import { LyricsView } from './components/LyricsView';
 import { AudioVisualizer } from './components/AudioVisualizer';
 import { parseLrc } from './utils';
-import { Volume2, VolumeX, ListMusic } from 'lucide-react';
+import { Volume2, VolumeX, ListMusic, Repeat, Repeat1, Shuffle } from 'lucide-react';
 
 // 主应用组件
 const App: React.FC = () => {
@@ -104,8 +104,8 @@ const App: React.FC = () => {
   }, [playMode]);
 
   const handlePrev = () => {
-    // 如果当前时间 > 3 秒，则重播当前歌曲而不是切换到上一首
-    if (audioRef.current && audioRef.current.currentTime > 3) {
+    // 如果当前时间 > 10 秒，则重播当前歌曲而不是切换到上一首
+    if (audioRef.current && audioRef.current.currentTime > 10) {
       audioRef.current.currentTime = 0;
       setCurrentTime(0); // 手动更新状态以获得即时反馈
       return;
@@ -320,15 +320,29 @@ const App: React.FC = () => {
                         onNext={handleNext} 
                         onPrev={handlePrev}
                         playMode={playMode}
-                        onToggleMode={togglePlayMode}
                     />
                  </div>
 
                  {/* 右侧部分：音量+播放列表（桌面端）或播放列表（移动端） */}
                  <div className="flex items-center gap-3 w-12 md:w-1/3 justify-end">
                     
+                    {/* 桌面端：播放模式切换 (放在音量左侧) */}
+                    <button 
+                        onClick={togglePlayMode}
+                        className="hidden md:block p-2 text-gray-400 hover:text-white transition-colors duration-200 hover:bg-white/10 rounded-full"
+                        title="切换播放模式"
+                    >
+                        {playMode === PlayMode.LOOP ? (
+                            <Repeat1 size={20} className="text-green-400" />
+                        ) : playMode === PlayMode.SHUFFLE ? (
+                            <Shuffle size={20} className="text-green-400" />
+                        ) : (
+                            <Repeat size={20} />
+                        )}
+                    </button>
+
                     {/* 桌面端：音量 */}
-                    <div className="hidden md:flex items-center gap-3 mr-4">
+                    <div className="hidden md:flex items-center gap-3">
                         <button onClick={() => setVolume(v => v === 0 ? 0.7 : 0)} className="text-gray-400 hover:text-white">
                              {volume === 0 ? <VolumeX size={20} /> : <Volume2 size={20} />}
                         </button>
