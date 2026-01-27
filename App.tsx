@@ -18,14 +18,55 @@ const App: React.FC = () => {
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(0.7);
+  const [playbackRate, setPlaybackRate] = useState<number>(1);
   const [isPlaylistOpen, setIsPlaylistOpen] = useState<boolean>(false);
   const [isMobileVolumeOpen, setIsMobileVolumeOpen] = useState<boolean>(false);
+  const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState<boolean>(false);
   const [parsedLyrics, setParsedLyrics] = useState<{ time: number; text: string }[]>([]);
   
   // 引用
   const audioRef = useRef<HTMLAudioElement>(null);
   
   const currentSong = SONG_LIST[currentSongIndex];
+
+  // --- 全局安全与交互设置 ---
+  useEffect(() => {
+    // 禁止右键菜单
+    const handleContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+    };
+
+    // 禁止开发者工具快捷键
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // F12
+      if (e.key === 'F12') {
+        e.preventDefault();
+      }
+      
+      // Ctrl+Shift+I, Ctrl+Shift+J, Ctrl+Shift+C (Windows/Linux)
+      // Cmd+Option+I, Cmd+Option+J, Cmd+Option+C (Mac)
+      if (
+        (e.ctrlKey || e.metaKey) && 
+        (e.shiftKey || e.altKey) && 
+        ['I', 'J', 'C', 'i', 'j', 'c'].includes(e.key)
+      ) {
+        e.preventDefault();
+      }
+
+      // Ctrl+U (查看源代码) / Ctrl+S (保存)
+      if ((e.ctrlKey || e.metaKey) && ['u', 'U', 's', 'S'].includes(e.key)) {
+        e.preventDefault();
+      }
+    };
+
+    document.addEventListener('contextmenu', handleContextMenu);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('contextmenu', handleContextMenu);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, []);
 
   // --- 音频事件处理程序 ---
 
@@ -59,6 +100,8 @@ const App: React.FC = () => {
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
+      // 确保应用当前的播放速度
+      audioRef.current.playbackRate = playbackRate;
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Play failed:", e));
       }
@@ -182,8 +225,15 @@ const App: React.FC = () => {
     }
   }, [volume]);
 
+  // 更新播放速度
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.playbackRate = playbackRate;
+    }
+  }, [playbackRate]);
+
   return (
-    <div className="relative h-screen w-full flex flex-col overflow-hidden font-sans bg-gray-950 text-white">
+    <div className="relative h-screen w-full flex flex-col overflow-hidden font-sans bg-gray-950 text-white select-none">
       
       {/* 动态背景 */}
       <div 
@@ -208,6 +258,7 @@ const App: React.FC = () => {
             src="https://telegraph-image-uqe.pages.dev/file/BQACAgUAAyEGAASupuQzAAM6aW6Rl0hr3GhPenfS1Ec-5oEJj7IAAp0dAAJKfnhX7lAt8rS8dj84BA.svg" 
             alt="Revelation Logo" 
             className="w-8 h-8 md:w-10 md:h-10 drop-shadow-[0_0_15px_rgba(255,255,255,0.5)]"
+            draggable={false}
           />
           <span className="text-xl md:text-2xl font-bold tracking-wider uppercase bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">
             Revelation's Music
@@ -231,6 +282,8 @@ const App: React.FC = () => {
                   src={currentSong.cover} 
                   alt={currentSong.name}
                   className="w-full h-full object-cover"
+                  draggable={false}
+                  onContextMenu={(e) => e.preventDefault()}
                 />
             </div>
             
@@ -271,11 +324,16 @@ const App: React.FC = () => {
              <div className="flex items-center justify-between gap-2">
                  
                  {/* 左侧部分：信息（桌面端）或音量（移动端） */}
-                 {/* 移动端使用 w-12 以匹配右侧的 w-12，确保中间组件保持居中 */}
-                 <div className="flex items-center gap-4 w-12 md:w-1/3 justify-start">
+                 {/* 修改: 移动端 flex-1，桌面端 w-1/3，确保左右对称 */}
+                 <div className="flex flex-1 md:flex-none md:w-1/3 items-center gap-4 justify-start">
                     {/* 桌面端：信息 */}
                     <div className="hidden md:flex items-center gap-4">
-                        <img src={currentSong.cover} className="w-14 h-14 rounded-lg bg-gray-800 object-cover border border-white/10" alt="mini cover"/>
+                        <img 
+                          src={currentSong.cover} 
+                          className="w-14 h-14 rounded-lg bg-gray-800 object-cover border border-white/10" 
+                          alt="mini cover"
+                          draggable={false}
+                        />
                         <div className="overflow-hidden">
                             <div className="text-base font-bold truncate text-white">{currentSong.name}</div>
                             <div className="text-sm text-gray-400 truncate">{currentSong.artist}</div>
@@ -313,7 +371,8 @@ const App: React.FC = () => {
                  </div>
 
                  {/* 中间部分：主控制 */}
-                 <div className="flex-1 flex justify-center">
+                 {/* 修改: 移动端 shrink-0，桌面端 flex-1 */}
+                 <div className="flex shrink-0 md:flex-1 justify-center">
                     <PlayerControls 
                         isPlaying={isPlaying} 
                         onPlayPause={handlePlayPause} 
@@ -324,8 +383,39 @@ const App: React.FC = () => {
                  </div>
 
                  {/* 右侧部分：音量+播放列表（桌面端）或播放列表（移动端） */}
-                 <div className="flex items-center gap-3 w-12 md:w-1/3 justify-end">
+                 {/* 修改: 移动端 flex-1，桌面端 w-1/3 */}
+                 <div className="flex flex-1 md:flex-none md:w-1/3 items-center gap-3 justify-end min-w-[3rem]">
                     
+                    {/* 播放速度控制 - 移动端和桌面端均显示 */}
+                    <div className="relative z-40">
+                         {isSpeedMenuOpen && (
+                            <>
+                                <div className="fixed inset-0 z-40" onClick={() => setIsSpeedMenuOpen(false)} />
+                                <div className="absolute bottom-full right-0 mb-3 bg-gray-900/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col w-20 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 py-1">
+                                    {[2.0, 1.5, 1.25, 1.0, 0.75].map((rate) => (
+                                        <button
+                                            key={rate}
+                                            onClick={() => {
+                                                setPlaybackRate(rate);
+                                                setIsSpeedMenuOpen(false);
+                                            }}
+                                            className={`px-0 py-2 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
+                                        >
+                                            {rate}x
+                                        </button>
+                                    ))}
+                                </div>
+                            </>
+                        )}
+                        <button 
+                            onClick={() => setIsSpeedMenuOpen(!isSpeedMenuOpen)}
+                            className={`w-9 h-9 flex items-center justify-center text-xs font-bold font-mono transition-colors rounded-full border border-transparent hover:border-white/5 ${isSpeedMenuOpen ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                            title="播放速度"
+                        >
+                            {playbackRate}x
+                        </button>
+                    </div>
+
                     {/* 桌面端：播放模式切换 (放在音量左侧) */}
                     <button 
                         onClick={togglePlayMode}
