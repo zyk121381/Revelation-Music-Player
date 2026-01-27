@@ -57,6 +57,7 @@ export const SongList: React.FC<SongListProps> = ({ songs, currentSongIndex, isP
                   alt={song.name} 
                   loading="lazy"
                   className={`w-full h-full object-cover transition-opacity ${isActive ? 'opacity-50' : ''}`}
+                  draggable={false}
                 />
                 {isActive && (
                   <div className="absolute inset-0 flex items-center justify-center">
