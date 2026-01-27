@@ -11,10 +11,11 @@ A modern, responsive music player built with React and Tailwind CSS, featuring p
 - **Responsive Design:** Cross-platform adaptation providing a smooth user experience on any device size.
 - **Immersive UI:** Modern and minimalist design focused on the music playback experience.
 - **Audio Spectrum:** Real-time audio spectrum visualization on the desktop version, enhancing visual effects.
-- **Playlist Management:** Supports adding, deleting, and sorting songs.
+- **Playlist Management:** Supports adding, deleting, playback speed controllingand sorting songs.
 - **Playback Controls:** Includes play, pause, previous, next, and progress bar control.
 - **Volume Control:** Supports volume adjustment (default initial volume is 70%).
-- **JSON API:** API interface for fetching real-time music data.
+- ~**JSON API:** API interface for fetching real-time music data.~ (removed in version 1.0.3)
+
 ## ⚡ Quick Start / 📄 Documentation
 ### Deployment
 **Environment:** Node.js
@@ -29,4 +30,5 @@ A modern, responsive music player built with React and Tailwind CSS, featuring p
    - `"url"`: URL of the audio file (string)
    - `"cover"`: URL of the cover image (string)
    - `"lrc"`: URL of the lyrics file (string)
-2. Access `/list` to get the music details list.
+
+2. ~Access `/list` to get the music details list.~ (removed in version 1.0.3)
