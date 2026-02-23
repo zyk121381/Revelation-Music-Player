@@ -1,20 +1,61 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { SONG_LIST } from './constants';
-import { PlayMode } from './types';
+import { Song, PlayMode } from './types';
 import { PlayerControls } from './components/PlayerControls';
 import { ProgressBar } from './components/ProgressBar';
 import { SongList } from './components/SongList';
 import { LyricsView } from './components/LyricsView';
 import { AudioVisualizer } from './components/AudioVisualizer';
 import { parseLrc } from './utils';
-import { Volume2, VolumeX, ListMusic, Repeat, Repeat1, Shuffle } from 'lucide-react';
+import { Volume2, VolumeX, ListMusic, Repeat, Repeat1, Shuffle, Play } from 'lucide-react';
 
 // 主应用组件
 const App: React.FC = () => {
   // 状态
+  const [playlist, setPlaylist] = useState<Song[]>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const name = params.get('name');
+    const url = params.get('audio') || params.get('url'); // 使用 audio 替代 url 避免 Vite 冲突
+    const playerSongName = params.get('player');
+
+    if (name && url) {
+      return [{
+        name,
+        artist: params.get('artist') || 'Unknown Artist',
+        url,
+        cover: params.get('cover') || 'https://picsum.photos/seed/custom/500/500',
+        lrc: params.get('lrc') || ''
+      }, ...SONG_LIST];
+    }
+    
+    if (playerSongName) {
+      const targetSongIndex = SONG_LIST.findIndex(song => song.name === playerSongName);
+      if (targetSongIndex !== -1) {
+        // 将目标歌曲移动到列表顶部
+        const newPlaylist = [...SONG_LIST];
+        const [targetSong] = newPlaylist.splice(targetSongIndex, 1);
+        newPlaylist.unshift(targetSong);
+        return newPlaylist;
+      }
+    }
+
+    return SONG_LIST;
+  });
+
   const [currentSongIndex, setCurrentSongIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [playMode, setPlayMode] = useState<PlayMode>(PlayMode.SEQUENCE);
+  const [showAutoPlayAlert, setShowAutoPlayAlert] = useState<boolean>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasCustomSong = !!(params.get('name') && (params.get('audio') || params.get('url')));
+    const hasPlayerSong = !!params.get('player') && SONG_LIST.some(song => song.name === params.get('player'));
+    return hasCustomSong || hasPlayerSong;
+  });
+  const [playMode, setPlayMode] = useState<PlayMode>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const hasCustomSong = !!(params.get('name') && (params.get('audio') || params.get('url')));
+    const hasPlayerSong = !!params.get('player') && SONG_LIST.some(song => song.name === params.get('player'));
+    return (hasCustomSong || hasPlayerSong) ? PlayMode.LOOP : PlayMode.SEQUENCE;
+  });
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
   const [volume, setVolume] = useState<number>(0.7);
@@ -27,7 +68,7 @@ const App: React.FC = () => {
   // 引用
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  const currentSong = SONG_LIST[currentSongIndex];
+  const currentSong = playlist[currentSongIndex];
 
   // --- 全局安全与交互设置 ---
   useEffect(() => {
@@ -137,14 +178,14 @@ const App: React.FC = () => {
       if (playMode === PlayMode.SHUFFLE) {
         let newIndex;
         do {
-          newIndex = Math.floor(Math.random() * SONG_LIST.length);
-        } while (newIndex === prevIndex && SONG_LIST.length > 1);
+          newIndex = Math.floor(Math.random() * playlist.length);
+        } while (newIndex === prevIndex && playlist.length > 1);
         return newIndex;
       } else {
-        return (prevIndex + 1) % SONG_LIST.length;
+        return (prevIndex + 1) % playlist.length;
       }
     });
-  }, [playMode]);
+  }, [playMode, playlist.length]);
 
   const handlePrev = () => {
     // 如果当前时间 > 10 秒，则重播当前歌曲而不是切换到上一首
@@ -156,9 +197,9 @@ const App: React.FC = () => {
 
     setCurrentSongIndex((prevIndex) => {
       if (playMode === PlayMode.SHUFFLE) {
-        return Math.floor(Math.random() * SONG_LIST.length);
+        return Math.floor(Math.random() * playlist.length);
       }
-      return (prevIndex - 1 + SONG_LIST.length) % SONG_LIST.length;
+      return (prevIndex - 1 + playlist.length) % playlist.length;
     });
   };
 
@@ -311,8 +352,38 @@ const App: React.FC = () => {
 
       {/* 底部栏：控制 */}
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-black/80 backdrop-blur-2xl border-t border-white/5 pt-4 pb-6 px-4 md:px-8">
-         <div className="max-w-7xl mx-auto flex flex-col gap-4">
+         <div className="max-w-7xl mx-auto flex flex-col gap-4 relative">
              
+             {/* 移动端悬浮播放速度控制 */}
+             <div className="md:hidden absolute right-0 -top-14 z-40">
+                 {isSpeedMenuOpen && (
+                     <>
+                         <div className="fixed inset-0 z-40" onClick={() => setIsSpeedMenuOpen(false)} />
+                         <div className="absolute bottom-full right-0 mb-2 bg-gray-900/95 backdrop-blur-xl rounded-xl border border-white/10 shadow-2xl overflow-hidden flex flex-col w-20 z-50 animate-in fade-in slide-in-from-bottom-2 duration-200 py-1">
+                             {[2.0, 1.5, 1.25, 1.0, 0.75].map((rate) => (
+                                 <button
+                                     key={rate}
+                                     onClick={() => {
+                                         setPlaybackRate(rate);
+                                         setIsSpeedMenuOpen(false);
+                                     }}
+                                     className={`px-0 py-2 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
+                                 >
+                                     {rate}x
+                                 </button>
+                             ))}
+                         </div>
+                     </>
+                 )}
+                 <button 
+                     onClick={() => setIsSpeedMenuOpen(!isSpeedMenuOpen)}
+                     className={`w-9 h-9 flex items-center justify-center text-xs font-bold font-mono transition-colors rounded-full border border-white/20 hover:border-white/50 shadow-lg backdrop-blur-md ${isSpeedMenuOpen ? 'bg-white/10 text-white' : 'bg-black/40 text-gray-300 hover:text-white hover:bg-white/10'}`}
+                     title="播放速度"
+                 >
+                     {playbackRate}x
+                 </button>
+             </div>
+
              {/* 进度条 */}
              <ProgressBar 
                 currentTime={currentTime} 
@@ -321,11 +392,10 @@ const App: React.FC = () => {
              />
 
              {/* 控制容器 */}
-             <div className="flex items-center justify-between gap-2">
+             <div className="flex items-center justify-center md:justify-between gap-6 md:gap-2 w-full">
                  
                  {/* 左侧部分：信息（桌面端）或音量（移动端） */}
-                 {/* 修改: 移动端 flex-1，桌面端 w-1/3，确保左右对称 */}
-                 <div className="flex flex-1 md:flex-none md:w-1/3 items-center gap-4 justify-start">
+                 <div className="flex md:w-1/3 items-center gap-4 justify-start">
                     {/* 桌面端：信息 */}
                     <div className="hidden md:flex items-center gap-4">
                         <img 
@@ -383,11 +453,10 @@ const App: React.FC = () => {
                  </div>
 
                  {/* 右侧部分：音量+播放列表（桌面端）或播放列表（移动端） */}
-                 {/* 修改: 移动端 flex-1，桌面端 w-1/3 */}
-                 <div className="flex flex-1 md:flex-none md:w-1/3 items-center gap-3 justify-end min-w-[3rem]">
+                 <div className="flex md:w-1/3 items-center gap-3 justify-end">
                     
-                    {/* 播放速度控制 - 移动端和桌面端均显示 */}
-                    <div className="relative z-40">
+                    {/* 播放速度控制 - 桌面端显示 (移动端已移至悬浮按钮) */}
+                    <div className="hidden md:block relative z-40">
                          {isSpeedMenuOpen && (
                             <>
                                 <div className="fixed inset-0 z-40" onClick={() => setIsSpeedMenuOpen(false)} />
@@ -409,7 +478,7 @@ const App: React.FC = () => {
                         )}
                         <button 
                             onClick={() => setIsSpeedMenuOpen(!isSpeedMenuOpen)}
-                            className={`w-9 h-9 flex items-center justify-center text-xs font-bold font-mono transition-colors rounded-full border border-transparent hover:border-white/5 ${isSpeedMenuOpen ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
+                            className={`w-9 h-9 flex items-center justify-center text-xs font-bold font-mono transition-colors rounded-full border border-white/20 hover:border-white/50 ${isSpeedMenuOpen ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white hover:bg-white/10'}`}
                             title="播放速度"
                         >
                             {playbackRate}x
@@ -469,7 +538,7 @@ const App: React.FC = () => {
       >
         <div className="h-full overflow-hidden">
              <SongList 
-                 songs={SONG_LIST} 
+                 songs={playlist} 
                  currentSongIndex={currentSongIndex} 
                  isPlaying={isPlaying} 
                  onSelectSong={(idx) => {
@@ -487,6 +556,27 @@ const App: React.FC = () => {
             className="fixed inset-0 bg-black/50 z-40 md:bg-transparent"
             onClick={() => setIsPlaylistOpen(false)}
         />
+      )}
+
+      {/* 自定义弹窗：自动播放提示 */}
+      {showAutoPlayAlert && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 text-green-400">
+              <Play size={32} fill="currentColor" className="ml-1" />
+            </div>
+            <h3 className="text-xl font-bold text-white mb-2">准备就绪</h3>
+            <p className="text-gray-400 text-sm mb-6">
+              由于浏览器自动播放策略限制，我们需要您手动点击播放按钮来开始音乐。
+            </p>
+            <button 
+              onClick={() => setShowAutoPlayAlert(false)}
+              className="w-full py-3 bg-white text-black font-bold rounded-xl hover:bg-gray-200 transition-colors active:scale-95"
+            >
+              我知道了
+            </button>
+          </div>
+        </div>
       )}
 
       {/* 隐藏的音频元素 */}

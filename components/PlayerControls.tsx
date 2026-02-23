@@ -18,17 +18,14 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   playMode,
 }) => {
   return (
-    <div className="flex items-center justify-center gap-4 sm:gap-6">
-      {/* 移动端对称占位符，用于平衡右侧指示器 */}
-      <div className="sm:hidden w-5" />
-
+    <div className="flex items-center justify-center gap-6 sm:gap-8 relative">
       <button onClick={onPrev} className="text-gray-300 hover:text-white transition-transform active:scale-95 p-2 hover:bg-white/10 rounded-full">
         <SkipBack size={24} fill="currentColor" />
       </button>
 
       <button
         onClick={onPlayPause}
-        className="bg-white text-black rounded-full p-3 hover:scale-105 transition-transform active:scale-95 shadow-lg shadow-white/10 mx-2"
+        className="bg-white text-black rounded-full p-3 hover:scale-105 transition-transform active:scale-95 shadow-lg shadow-white/10"
       >
         {isPlaying ? (
           <Pause size={28} fill="currentColor" />
@@ -41,14 +38,12 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
         <SkipForward size={24} fill="currentColor" />
       </button>
 
-      {/* 仅在激活时显示的移动端随机播放指示器，否则隐藏（占据空间） */}
-      <div className="sm:hidden w-5 flex justify-center">
-        {playMode !== PlayMode.SEQUENCE && (
-            <div className="text-green-400">
-               {playMode === PlayMode.SHUFFLE ? <Shuffle size={16}/> : <Repeat1 size={16}/>}
-            </div>
-        )}
-      </div>
+      {/* 仅在激活时显示的移动端随机播放指示器 */}
+      {playMode !== PlayMode.SEQUENCE && (
+        <div className="sm:hidden absolute -right-2 -top-2 text-green-400">
+           {playMode === PlayMode.SHUFFLE ? <Shuffle size={14}/> : <Repeat1 size={14}/>}
+        </div>
+      )}
     </div>
   );
 };
