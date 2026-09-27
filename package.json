@@ -1,10 +1,11 @@
 {
   "name": "Revelation Music Player",
   "private": true,
-  "version": "2.0.0",
+  "version": "3.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "sync:songs": "node scripts/syncVault.js",
     "build": "vite build",
     "preview": "vite preview"
   },
