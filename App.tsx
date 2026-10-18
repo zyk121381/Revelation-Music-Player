@@ -273,30 +273,12 @@ const App: React.FC = () => {
 
   // --- 音频事件处理程序 ---
 
-  // 使用 requestAnimationFrame 进行高精度时间更新
-  useEffect(() => {
-    let animationFrameId: number;
-
-    const animate = () => {
-      if (audioRef.current) {
-        // 只有在未暂停时更新时间，避免冲突
-        if (!audioRef.current.paused) {
-           setCurrentTime(audioRef.current.currentTime);
-        }
-      }
-      animationFrameId = requestAnimationFrame(animate);
-    };
-
-    if (isPlaying) {
-      animationFrameId = requestAnimationFrame(animate);
+  // 使用 audio 原生的 timeupdate 事件更新时间（播放时触发，暂停时自动停止）
+  const handleTimeUpdate = useCallback(() => {
+    if (audioRef.current) {
+      setCurrentTime(audioRef.current.currentTime);
     }
-
-    return () => {
-      if (animationFrameId) {
-        cancelAnimationFrame(animationFrameId);
-      }
-    };
-  }, [isPlaying]);
+  }, []);
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -966,6 +948,8 @@ const App: React.FC = () => {
                 currentTime={currentTime} 
                 duration={duration} 
                 onSeek={handleSeek} 
+                audioRef={audioRef}
+                isPlaying={isPlaying}
                 themeColor={ambientPalette.themeColor}
                 glowColor={ambientPalette.glowColor}
              />
@@ -1243,6 +1227,7 @@ const App: React.FC = () => {
         ref={audioRef}
         crossOrigin={audioCrossOrigin}
         onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
         onEnded={handleSongEnd}
         onError={handleAudioError}
       />
