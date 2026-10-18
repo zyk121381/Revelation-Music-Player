@@ -3,14 +3,25 @@ import React, { useEffect, useRef } from 'react';
 interface AudioVisualizerProps {
   audioRef: React.RefObject<HTMLAudioElement>;
   isPlaying: boolean;
+  themeRgb?: [number, number, number];
 }
 
-export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPlaying }) => {
+export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ 
+  audioRef, 
+  isPlaying, 
+  themeRgb = [74, 222, 128] 
+}) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
   const animationFrameRef = useRef<number>(0);
+
+  // 保持最新的色彩 RGB 引用，使动画循环无缝平滑自适应，无需重启绘图循环
+  const themeRgbRef = useRef<[number, number, number]>(themeRgb);
+  useEffect(() => {
+    themeRgbRef.current = themeRgb;
+  }, [themeRgb]);
 
   useEffect(() => {
     // 初始化 AudioContext
@@ -40,7 +51,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPl
     };
 
     if (audioRef.current) {
-        // 尝试初始化。
+        // 尝试初始化。注意：音频元素必须有 crossOrigin="anonymous"
         initAudio();
     }
   }, [audioRef]);
@@ -81,6 +92,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPl
       ctx.clearRect(0, 0, width, height);
 
       // --- 自定义可视化设置 ---
+      // 条形宽度 (5px) 且有间隙 (2px)
       const BAR_WIDTH = 5;
       const GAP = 2;
       const BAR_UNIT = BAR_WIDTH + GAP;
@@ -93,16 +105,19 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPl
       // 计算起始 X 坐标以居中可视化效果
       let x = (width - totalVisualizerWidth) / 2;
 
+      // 获取当前自适应主题 RGB 色彩
+      const [r, g, b] = themeRgbRef.current;
+
       for (let i = 0; i < barsToRender; i++) {
         // 缩放高度：从 0.6 降低到 0.4，以防止条形过高
         const value = dataArray[i];
         const barHeight = Math.max(2, (value / 255) * height * 0.4); 
 
-        // 创建渐变
+        // 创建随封面色自适应的辉光渐变
         const gradient = ctx.createLinearGradient(0, height - barHeight, 0, height);
-        gradient.addColorStop(0, 'rgba(74, 222, 128, 0.9)'); // 绿色顶部
-        gradient.addColorStop(0.5, 'rgba(74, 222, 128, 0.4)'); // 主体
-        gradient.addColorStop(1, 'rgba(74, 222, 128, 0.05)'); // 淡出
+        gradient.addColorStop(0, `rgba(${r}, ${g}, ${b}, 0.95)`); // 封面自适应高亮顶部
+        gradient.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, 0.45)`); // 主体过渡
+        gradient.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0.05)`); // 底部柔和淡出
 
         ctx.fillStyle = gradient;
         
@@ -119,7 +134,7 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ audioRef, isPl
       draw();
     } else {
        // 暂停或停止时清除画布
-       if(animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
+       if (animationFrameRef.current) cancelAnimationFrame(animationFrameRef.current);
        ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 

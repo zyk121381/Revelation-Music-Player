@@ -13,6 +13,8 @@ interface SongListProps {
   onToggleLock?: () => void;
   hiddenCount?: number;
   onOpenVaultEditor?: () => void;
+  themeColor?: string;
+  glowColor?: string;
 }
 
 // 针对大量大图优化的懒加载封面组件
@@ -21,7 +23,9 @@ const LazyCover: React.FC<{
   alt: string;
   isActive: boolean;
   isPlaying: boolean;
-}> = ({ src, alt, isActive, isPlaying }) => {
+  themeColor?: string;
+  glowColor?: string;
+}> = ({ src, alt, isActive, isPlaying, themeColor = '#4ade80', glowColor = 'rgba(74, 222, 128, 0.5)' }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [isVisible, setIsVisible] = useState(false);
   const [isLoaded, setIsLoaded] = useState(false);
@@ -85,9 +89,12 @@ const LazyCover: React.FC<{
       {isActive && (
         <div className="absolute inset-0 flex items-center justify-center z-10 pointer-events-none">
           {isPlaying ? (
-            <BarChart3 size={16} className="animate-pulse text-green-400 drop-shadow" />
+            <BarChart3 size={16} className="animate-pulse drop-shadow" style={{ color: themeColor }} />
           ) : (
-            <div className="w-2 h-2 bg-green-400 rounded-full shadow-[0_0_8px_rgba(74,222,128,0.8)]" />
+            <div 
+              className="w-2 h-2 rounded-full" 
+              style={{ backgroundColor: themeColor, boxShadow: `0 0 8px ${glowColor}` }} 
+            />
           )}
         </div>
       )}
@@ -105,7 +112,9 @@ export const SongList: React.FC<SongListProps> = ({
   onOpenUnlockModal,
   onToggleLock,
   hiddenCount,
-  onOpenVaultEditor
+  onOpenVaultEditor,
+  themeColor = '#4ade80',
+  glowColor = 'rgba(74, 222, 128, 0.45)'
 }) => {
   const activeItemRef = useRef<HTMLLIElement>(null);
 
@@ -152,10 +161,15 @@ export const SongList: React.FC<SongListProps> = ({
             isUnlocked ? (
               <button
                 onClick={onToggleLock}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold bg-green-500/15 text-green-300 border border-green-500/30 hover:bg-green-500/25 active:scale-95 transition-all shadow-sm"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border active:scale-95 transition-all shadow-sm"
+                style={{
+                  backgroundColor: `${themeColor}26`,
+                  color: themeColor,
+                  borderColor: `${themeColor}59`
+                }}
                 title="点击重新锁定并隐藏私密歌曲"
               >
-                <Unlock size={13} className="text-green-400" />
+                <Unlock size={13} style={{ color: themeColor }} />
                 <span>已解锁</span>
               </button>
             ) : (
@@ -202,11 +216,16 @@ export const SongList: React.FC<SongListProps> = ({
                 alt={song.name}
                 isActive={isActive}
                 isPlaying={isPlaying}
+                themeColor={themeColor}
+                glowColor={glowColor}
               />
               
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 overflow-hidden">
-                  <h3 className={`text-sm font-medium truncate ${isActive ? 'text-green-400' : ''}`}>
+                  <h3 
+                    className="text-sm font-medium truncate"
+                    style={isActive ? { color: themeColor } : undefined}
+                  >
                     {song.name}
                   </h3>
                   {isHidden && (

@@ -9,15 +9,25 @@ interface LyricsViewProps {
   showTranslation?: boolean;
   onToggleTranslation?: () => void;
   hasTranslation?: boolean;
+  themeColor?: string;
+  accentColor?: string;
+  glowColor?: string;
+  buttonBg?: string;
+  buttonBorder?: string;
 }
 
 export const LyricsView: React.FC<LyricsViewProps> = ({ 
   lyrics, 
   currentTime, 
   onLyricClick,
-  showTranslation = false,
+  showTranslation = true,
   onToggleTranslation,
-  hasTranslation = false
+  hasTranslation = false,
+  themeColor = '#4ade80',
+  accentColor = '#86efac',
+  glowColor = 'rgba(74, 222, 128, 0.45)',
+  buttonBg,
+  buttonBorder
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const activeLineRef = useRef<HTMLDivElement>(null);
@@ -55,9 +65,12 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
     );
   }
 
+  const activeBtnBg = buttonBg || 'rgba(255, 255, 255, 0.15)';
+  const activeBtnBorder = buttonBorder || 'rgba(255, 255, 255, 0.35)';
+
   return (
     <div className="relative h-full w-full">
-      {/* 歌词区右下角独立悬浮翻译按钮 (置于控制栏外部，支持桌面端与移动端) */}
+      {/* 歌词区右下角独立悬浮翻译按钮 (置于控制栏外部，支持桌面端与移动端，随封面自适应色彩) */}
       {hasTranslation && onToggleTranslation && (
         <div className="absolute bottom-3 right-3 md:bottom-5 md:right-5 z-30 pointer-events-auto">
           <button
@@ -65,11 +78,17 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
               e.stopPropagation();
               onToggleTranslation();
             }}
-            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-xl border transition-all active:scale-95 shadow-xl ${
+            className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-semibold backdrop-blur-md border transition-all active:scale-95 ${
               showTranslation 
-                ? 'bg-green-500/25 text-green-300 border-green-400/50 shadow-green-500/20 ring-1 ring-green-400/30' 
+                ? 'shadow-md' 
                 : 'bg-black/60 text-gray-400 border-white/15 hover:text-white hover:bg-black/80 hover:border-white/30'
             }`}
+            style={showTranslation ? {
+              backgroundColor: activeBtnBg,
+              color: accentColor,
+              borderColor: activeBtnBorder,
+              boxShadow: `0 0 12px ${glowColor}`
+            } : undefined}
             title={showTranslation ? "点击关闭歌词翻译" : "点击开启歌词翻译"}
           >
             <TranslateBadgeIcon active={showTranslation} size={15} />
@@ -97,31 +116,46 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 className={`
                   transition-all duration-300 ease-out cursor-pointer break-words px-1 md:px-3 text-left md:text-center origin-left md:origin-center
                   ${isActive 
-                    ? 'scale-105 md:scale-110 drop-shadow-[0_0_15px_rgba(74,222,128,0.4)]' 
+                    ? 'scale-105 md:scale-110' 
                     : 'hover:scale-102'
                   }
                 `}
+                style={isActive ? {
+                  filter: `drop-shadow(0 0 14px ${glowColor})`
+                } : undefined}
               >
-                {/* 歌词原文 */}
-                <p className={`
-                  transition-colors duration-300
-                  ${isActive 
-                    ? 'text-green-400 text-xl md:text-2xl font-bold' 
-                    : 'text-gray-400/50 text-base md:text-lg hover:text-white/80'
-                  }
-                `}>
+                {/* 歌词原文 - 随专辑封面自适应色彩 */}
+                <p 
+                  className={`
+                    transition-all duration-300
+                    ${isActive 
+                      ? 'text-xl md:text-2xl font-bold' 
+                      : 'text-gray-400/50 text-base md:text-lg hover:text-white/80'
+                    }
+                  `}
+                  style={isActive ? {
+                    color: themeColor,
+                    textShadow: `0 0 16px ${glowColor}`
+                  } : undefined}
+                >
                   {line.text}
                 </p>
 
-                {/* 歌词译文 (小字显示在歌词下方，单首歌曲主动开启后显示) */}
+                {/* 歌词译文 - 随专辑高光色自适应 */}
                 {showTranslation && line.translation && (
-                  <p className={`
-                    mt-1.5 text-xs sm:text-sm md:text-base font-normal tracking-wide transition-colors duration-300
-                    ${isActive 
-                      ? 'text-green-300/80 drop-shadow-sm' 
-                      : 'text-gray-400/40 hover:text-gray-300/60'
-                    }
-                  `}>
+                  <p 
+                    className={`
+                      mt-1.5 text-xs sm:text-sm md:text-base font-normal tracking-wide transition-all duration-300
+                      ${isActive 
+                        ? 'drop-shadow-sm font-medium' 
+                        : 'text-gray-400/40 hover:text-gray-300/60'
+                      }
+                    `}
+                    style={isActive ? {
+                      color: accentColor,
+                      opacity: 0.92
+                    } : undefined}
+                  >
                     {line.translation}
                   </p>
                 )}

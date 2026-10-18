@@ -6,6 +6,7 @@ interface MarqueeTextProps {
   speed?: number; // pixels per second
   pauseDuration?: number; // ms to pause at initial position
   gap?: number; // pixel gap between repeated texts
+  style?: React.CSSProperties; // 透传到最外层容器，便于外部控制文字颜色等
 }
 
 export const MarqueeText: React.FC<MarqueeTextProps> = ({
@@ -14,6 +15,7 @@ export const MarqueeText: React.FC<MarqueeTextProps> = ({
   speed = 30,
   pauseDuration = 2000,
   gap = 48,
+  style,
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const measureRef = useRef<HTMLSpanElement>(null);
@@ -103,7 +105,7 @@ export const MarqueeText: React.FC<MarqueeTextProps> = ({
 
   if (!isOverflowing) {
     return (
-      <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className}`}>
+      <div ref={containerRef} className={`overflow-hidden whitespace-nowrap ${className}`} style={style}>
         <span ref={measureRef} className="inline-block whitespace-nowrap">
           {text}
         </span>
@@ -115,6 +117,7 @@ export const MarqueeText: React.FC<MarqueeTextProps> = ({
     <div
       ref={containerRef}
       className={`overflow-hidden relative whitespace-nowrap select-none ${className}`}
+      style={style}
     >
       <div
         className="inline-flex items-center whitespace-nowrap will-change-transform"

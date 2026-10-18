@@ -8,6 +8,7 @@ interface PlayerControlsProps {
   onNext: () => void;
   onPrev: () => void;
   playMode: PlayMode;
+  themeColor?: string;
 }
 
 export const PlayerControls: React.FC<PlayerControlsProps> = ({
@@ -16,6 +17,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
   onNext,
   onPrev,
   playMode,
+  themeColor = '#4ade80'
 }) => {
   return (
     <div className="flex items-center justify-center gap-6 sm:gap-8 relative">
@@ -40,7 +42,7 @@ export const PlayerControls: React.FC<PlayerControlsProps> = ({
 
       {/* 仅在激活时显示的移动端随机播放指示器 */}
       {playMode !== PlayMode.SEQUENCE && (
-        <div className="sm:hidden absolute -right-2 -top-2 text-green-400">
+        <div className="sm:hidden absolute -right-2 -top-2" style={{ color: themeColor }}>
            {playMode === PlayMode.SHUFFLE ? <Shuffle size={14}/> : <Repeat1 size={14}/>}
         </div>
       )}

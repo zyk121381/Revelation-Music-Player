@@ -14,7 +14,9 @@ A modern, responsive music player built with React and Tailwind CSS, featuring p
 - **Responsive Design:** Cross-platform adaptation providing a smooth user experience on any device size.
 - **Mobile Dual Views:** A vinyl turntable view and an immersive lyrics view, switchable by swiping left or right.
 - **Immersive UI:** Modern and minimalist design focused on the music playback experience.
-- **Audio Spectrum:** Real-time audio spectrum visualization on the desktop version, enhancing visual effects.
+- **Audio Spectrum:** Real-time audio spectrum visualization on the desktop version, enhancing visual effects (requires CORS headers on the audio file; hidden automatically otherwise).
+- **Cover-driven Adaptive Palette:** The dominant color of the current cover is extracted in real time to build the whole UI palette — lyrics, progress bar, spectrum, buttons and more follow it, with dedicated handling for very dark and monochrome covers.
+- **Audio Quality Analysis:** Shows the real sample rate and bitrate of the current song (e.g. `44.1kHz` / `320kbps`).
 - **Playlist Management:** Supports adding, deleting, playback speed controllingand sorting songs.
 - **Hidden Songs:** Songs can be marked as hidden and only appear after unlocking with the administrator password.
 - **Encrypted Vault:** All song links are stored salted and obfuscated, so no plaintext URLs are exposed in the source code.
@@ -66,6 +68,24 @@ The lyrics file (`.lrc`) supports the following formats, which are parsed and so
 - Multiple timestamps on one line: `[00:12.50][01:20.00]lyric text` (the line is duplicated at every timestamp)
 
 The translation toggle only appears when the current song actually contains translations.
+
+### Cross-origin Resources and Graceful Degradation
+
+Cover color extraction, the audio spectrum and audio quality analysis rely on the audio/image resources returning the `Access-Control-Allow-Origin` header. When a resource server does not send it, the player degrades automatically — **normal playback and display are never affected**:
+
+| Feature | Requires | When unavailable |
+|---|---|---|
+| Cover-driven palette | CORS header on the image | A fallback palette generated from the song name is used |
+| Audio spectrum | CORS header on the audio | The spectrum is hidden automatically; playback is unaffected |
+| Audio quality analysis | CORS header on the audio plus an allowed `Range` preflight | The fallback `44.1kHz` / `320kbps` is displayed |
+
+Additional notes:
+
+- If audio loading fails, it is retried without CORS so the song can always play;
+- Once cover extraction fails for a domain, that domain is remembered and no further futile requests are made;
+- Cover images are loaded the regular way, so they are never affected by CORS and always display correctly;
+- To restore the full experience, serve audio and images from the same origin as the player (for example via a reverse proxy), or configure `CUSTOM_IMAGE_PROXY` in `components/colorExtractor.ts` to use your own image proxy;
+- If you do not need cover color extraction at all, set `ENABLE_COVER_COLOR_EXTRACTION` in `components/colorExtractor.ts` to `false` — no extra requests will be made at all.
 
 ### Security Configuration (Required Before Deployment)
 
@@ -131,7 +151,8 @@ The values shipped in this repository are **placeholders**. Replace them with yo
 
 - Desktop: the floating "译 OFF / 译 ON" button at the bottom-right of the lyrics area
 - Mobile: the "译 OFF / 译 ON" button in the toolbar at the bottom of the turntable view
-- Translations are **off** by default for every song and are reset to off whenever the song changes
+- Translations are **on** by default for every song and the current state is kept when the song changes
+- The choice is remembered locally, so the next visit reuses your last setting
 
 ### URL Parameter Playback
 

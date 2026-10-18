@@ -11,6 +11,9 @@ import { MarqueeText } from './components/MarqueeText';
 import { AdminPasswordModal } from './components/AdminPasswordModal';
 import { SongVaultEditorModal } from './components/SongVaultEditorModal';
 import { TranslateBadgeIcon } from './components/TranslateIcon';
+import { getAudioMetadata, AudioQualityInfo } from './components/audioMetadata';
+import { extractPaletteFromImage, ColorPalette, getHashPalette } from './components/colorExtractor';
+import { AmbientLighting } from './components/AmbientLighting';
 import { 
   Volume2, 
   VolumeX, 
@@ -82,10 +85,46 @@ const App: React.FC = () => {
   const [isMobileVolumeOpen, setIsMobileVolumeOpen] = useState<boolean>(false);
   const [isSpeedMenuOpen, setIsSpeedMenuOpen] = useState<boolean>(false);
   const [parsedLyrics, setParsedLyrics] = useState<LyricLine[]>([]);
-  // 单首歌曲的歌词翻译控制 (需要单独主动开启，切歌自动重置为 false)
-  const [showTranslation, setShowTranslation] = useState<boolean>(false);
+  // 歌词翻译控制 (默认打开，切换歌曲保持状态不变，持久化用户偏好)
+  const [showTranslation, setShowTranslation] = useState<boolean>(() => {
+    try {
+      const saved = localStorage.getItem('revelation_show_translation');
+      return saved !== null ? saved === 'true' : true;
+    } catch {
+      return true;
+    }
+  });
+
+  const handleToggleTranslation = useCallback(() => {
+    setShowTranslation(prev => {
+      const next = !prev;
+      try {
+        localStorage.setItem('revelation_show_translation', String(next));
+      } catch {}
+      return next;
+    });
+  }, []);
+
   const hasTranslation = useMemo(() => parsedLyrics.some(line => !!line.translation), [parsedLyrics]);
   
+  // 实时歌曲采样率与比特率音质信息
+  const [audioQuality, setAudioQuality] = useState<AudioQualityInfo>({
+    sampleRate: '44.1kHz',
+    bitrate: '320kbps'
+  });
+
+  // 音频跨域加载模式：默认以 anonymous 加载（音频频谱需要 CORS 数据）
+  // 若被浏览器的跨源策略/私有网络访问(PNA)策略拦截，则自动降级为无 CORS 加载，优先保证歌曲可播放
+  const [audioCrossOrigin, setAudioCrossOrigin] = useState<'anonymous' | undefined>('anonymous');
+  // 降级后音频无法接入 Web Audio 分析，隐藏频谱避免显示无意义的空频谱
+  const [visualizerEnabled, setVisualizerEnabled] = useState<boolean>(true);
+  const isInitialAudioCrossOriginRef = useRef<boolean>(true);
+
+  // 动态环境光与自适应 UI 调色板 (随专辑封面自适应流光与组件色彩)
+  const [ambientPalette, setAmbientPalette] = useState<ColorPalette>(() => 
+    getHashPalette(playlist[0]?.name || 'Revelation')
+  );
+
   // 移动端视图状态：'cover' (黑胶封面首页) 或 'lyrics' (完整歌词页)
   const [mobileTab, setMobileTab] = useState<'cover' | 'lyrics'>('cover');
 
@@ -262,8 +301,9 @@ const App: React.FC = () => {
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
       setDuration(audioRef.current.duration);
-      // 确保应用当前的播放速度
+      // 确保应用当前的播放速度与音量
       audioRef.current.playbackRate = playbackRate;
+      audioRef.current.volume = volume;
       if (isPlaying) {
         audioRef.current.play().catch(e => console.error("Play failed:", e));
       }
@@ -272,56 +312,56 @@ const App: React.FC = () => {
 
   const handleSongEnd = () => {
     if (playMode === PlayMode.LOOP) {
-        if(audioRef.current) {
-            audioRef.current.currentTime = 0;
-            audioRef.current.play();
-        }
+      if (audioRef.current) {
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(e => console.error(e));
+      }
     } else {
-        handleNext();
+      handleNext();
     }
   };
 
-  // --- 控制逻辑 ---
+  // --- 控制逻辑 (直接即时响应，无淡入淡出延迟) ---
 
   const handlePlayPause = () => {
     if (audioRef.current) {
       if (isPlaying) {
         audioRef.current.pause();
+        setIsPlaying(false);
       } else {
-        audioRef.current.play();
+        audioRef.current.volume = volume;
+        audioRef.current.play().catch(e => console.warn("Play failed:", e));
+        setIsPlaying(true);
       }
-      setIsPlaying(!isPlaying);
     }
   };
 
   const handleNext = useCallback(() => {
-    setCurrentSongIndex((prevIndex) => {
-      if (playMode === PlayMode.SHUFFLE) {
-        let newIndex;
-        do {
-          newIndex = Math.floor(Math.random() * visiblePlaylist.length);
-        } while (newIndex === prevIndex && visiblePlaylist.length > 1);
-        return newIndex;
-      } else {
-        return (prevIndex + 1) % visiblePlaylist.length;
-      }
-    });
-  }, [playMode, visiblePlaylist.length]);
+    if (playMode === PlayMode.SHUFFLE) {
+      let newIndex;
+      do {
+        newIndex = Math.floor(Math.random() * visiblePlaylist.length);
+      } while (newIndex === currentSongIndex && visiblePlaylist.length > 1);
+      setCurrentSongIndex(newIndex);
+    } else {
+      setCurrentSongIndex(prev => (prev + 1) % visiblePlaylist.length);
+    }
+  }, [playMode, visiblePlaylist.length, currentSongIndex]);
 
   const handlePrev = () => {
-    // 如果当前时间 > 10 秒，则重播当前歌曲而不是切换到上一首
-    if (audioRef.current && audioRef.current.currentTime > 10) {
+    // 如果当前时间 > 5 秒，则重播当前歌曲而不是切换到上一首
+    if (audioRef.current && audioRef.current.currentTime > 5) {
       audioRef.current.currentTime = 0;
-      setCurrentTime(0); // 手动更新状态以获得即时反馈
+      setCurrentTime(0);
       return;
     }
 
-    setCurrentSongIndex((prevIndex) => {
-      if (playMode === PlayMode.SHUFFLE) {
-        return Math.floor(Math.random() * visiblePlaylist.length);
-      }
-      return (prevIndex - 1 + visiblePlaylist.length) % visiblePlaylist.length;
-    });
+    if (playMode === PlayMode.SHUFFLE) {
+      const newIndex = Math.floor(Math.random() * visiblePlaylist.length);
+      setCurrentSongIndex(newIndex);
+    } else {
+      setCurrentSongIndex(prev => (prev - 1 + visiblePlaylist.length) % visiblePlaylist.length);
+    }
   };
 
   const handleSeek = (time: number) => {
@@ -349,19 +389,17 @@ const App: React.FC = () => {
 
     currentLoadedSongUrlRef.current = currentSong.url;
 
-    // 单首歌曲的歌词翻译需要单独主动开启：切歌时自动重置为未开启
-    setShowTranslation(false);
-
     // 真正切换到另一首新歌曲时，才重置时间和时长
     setCurrentTime(0);
     setDuration(0);
 
     if (audioRef.current) {
       audioRef.current.src = currentSong.url;
+      audioRef.current.volume = volume;
       audioRef.current.load();
       if (isPlaying) {
         audioRef.current.play().catch((e) => {
-            console.warn("Autoplay blocked or file not found:", e);
+          console.warn("Autoplay blocked or file not found:", e);
         });
       }
     }
@@ -371,8 +409,8 @@ const App: React.FC = () => {
     if (currentSong.lrc) {
       fetch(currentSong.lrc)
         .then(res => {
-            if(!res.ok) throw new Error("Lyrics not found");
-            return res.text();
+          if(!res.ok) throw new Error("Lyrics not found");
+          return res.text();
         })
         .then(text => {
           const lines = parseLrc(text);
@@ -388,6 +426,37 @@ const App: React.FC = () => {
 
   }, [currentSong.url]); 
 
+  // 音频加载失败兜底：
+  // 若以 CORS(anonymous) 方式加载失败（浏览器跨源策略或私有网络访问策略拦截），
+  // 则降级为普通无 CORS 加载并重新载入当前歌曲，优先保证能正常播放
+  const handleAudioError = useCallback(() => {
+    if (audioCrossOrigin === 'anonymous') {
+      console.warn("音频跨域加载被拦截（CORS / 私有网络访问策略），已降级为普通加载，音频频谱将不可用");
+      setVisualizerEnabled(false);
+      setAudioCrossOrigin(undefined);
+      return;
+    }
+    console.error("Audio Load Error: 音频加载失败，请检查音频直链是否可访问");
+  }, [audioCrossOrigin]);
+
+  // 跨域模式降级后强制重新载入当前音频（绕过"URL 未变化则不重载"的优化）
+  useEffect(() => {
+    if (isInitialAudioCrossOriginRef.current) {
+      isInitialAudioCrossOriginRef.current = false;
+      return;
+    }
+    if (!audioRef.current || !currentSong.url) return;
+
+    audioRef.current.src = currentSong.url;
+    audioRef.current.volume = volume;
+    audioRef.current.load();
+    if (isPlaying) {
+      audioRef.current.play().catch((e) => {
+        console.warn("Retry play failed:", e);
+      });
+    }
+  }, [audioCrossOrigin]);
+
   // 更新音量
   useEffect(() => {
     if (audioRef.current) {
@@ -402,8 +471,49 @@ const App: React.FC = () => {
     }
   }, [playbackRate]);
 
+  // 实时解析当前播放歌曲的采样率与比特率
+  useEffect(() => {
+    // 音频已降级为无 CORS 加载，说明源站不允许跨域，音质解析必然失败，直接使用默认音质展示
+    if (audioCrossOrigin === undefined) {
+      setAudioQuality({ sampleRate: '44.1kHz', bitrate: '320kbps' });
+      return;
+    }
+
+    let isCancelled = false;
+    getAudioMetadata(currentSong.url, duration).then((info) => {
+      if (!isCancelled) {
+        setAudioQuality(info);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentSong.url, duration, audioCrossOrigin]);
+
+  // 实时提取当前专辑封面的主色调与氛围流光 (随切歌自适应过渡)
+  useEffect(() => {
+    let isCancelled = false;
+    extractPaletteFromImage(currentSong.cover, currentSong.name).then((pal) => {
+      if (!isCancelled) {
+        setAmbientPalette(pal);
+      }
+    });
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentSong.cover, currentSong.name]);
+
   return (
-    <div className="relative h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full flex flex-col overflow-hidden font-sans bg-gray-950 text-white select-none">
+    <div 
+      className="relative h-[100dvh] min-h-[100dvh] max-h-[100dvh] w-full flex flex-col overflow-hidden font-sans bg-gray-950 text-white select-none"
+      style={{
+        '--theme-color': ambientPalette.themeColor,
+        '--theme-accent': ambientPalette.accentColor,
+        '--theme-glow': ambientPalette.glowColor,
+        '--theme-btn-bg': ambientPalette.buttonBg,
+        '--theme-btn-border': ambientPalette.buttonBorder,
+      } as React.CSSProperties}
+    >
       
       {/* 动态背景 */}
       <div 
@@ -412,13 +522,23 @@ const App: React.FC = () => {
       />
       <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
 
-      {/* 可视化效果（仅限桌面端）- 精确贴合底部控制栏顶部 */}
-      <div 
-        className="hidden md:block absolute bottom-[114px] left-0 right-0 h-[35vh] z-[5] pointer-events-none opacity-80"
-        style={{ maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)' }}
-      >
-         <AudioVisualizer audioRef={audioRef} isPlaying={isPlaying} />
-      </div>
+      {/* 桌面端动态环境光 (随封面自适应流光) */}
+      <AmbientLighting palette={ambientPalette} isPlaying={isPlaying} />
+
+      {/* 可视化效果（仅限桌面端）- 频谱条随封面主色调自适应，精确贴合底部控制栏顶部 */}
+      {/* 音频降级为无 CORS 加载后无法接入频谱分析，此时隐藏频谱 */}
+      {visualizerEnabled && (
+        <div 
+          className="hidden md:block absolute bottom-[114px] left-0 right-0 h-[35vh] z-[5] pointer-events-none opacity-80"
+          style={{ maskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)', WebkitMaskImage: 'linear-gradient(to bottom, transparent 0%, black 25%)' }}
+        >
+          <AudioVisualizer 
+            audioRef={audioRef} 
+            isPlaying={isPlaying} 
+            themeRgb={ambientPalette.themeRgb}
+          />
+        </div>
+      )}
 
       {/* 头部 / 品牌 & 移动端导航 */}
       <header className="relative z-20 flex items-center justify-between px-4 py-2.5 md:p-6 w-full max-w-7xl mx-auto flex-shrink-0">
@@ -444,23 +564,31 @@ const App: React.FC = () => {
           </div>
         </div>
 
-        {/* 移动端顶部控制器：分页指示器 + 视图快捷键 */}
+        {/* 移动端顶部控制器：分页指示器 + 视图快捷键 (自适应色彩) */}
         <div className="flex md:hidden items-center gap-2.5 shrink-0">
           {/* 中间：分页指示器 */}
           <div className="flex items-center gap-1.5 py-1 px-2.5 rounded-full bg-white/10 border border-white/10 backdrop-blur-md">
             <button 
               onClick={() => setMobileTab('cover')}
-              className={`transition-all duration-300 rounded-full ${mobileTab === 'cover' ? 'w-3.5 h-1.5 bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 'w-1.5 h-1.5 bg-white/30 hover:bg-white/60'}`}
+              className={`transition-all duration-300 rounded-full ${mobileTab === 'cover' ? 'w-3.5 h-1.5' : 'w-1.5 h-1.5 bg-white/30 hover:bg-white/60'}`}
+              style={mobileTab === 'cover' ? {
+                backgroundColor: ambientPalette.themeColor,
+                boxShadow: `0 0 8px ${ambientPalette.glowColor}`
+              } : undefined}
               title="封面视图"
             />
             <button 
               onClick={() => setMobileTab('lyrics')}
-              className={`transition-all duration-300 rounded-full ${mobileTab === 'lyrics' ? 'w-3.5 h-1.5 bg-green-400 shadow-[0_0_8px_rgba(74,222,128,0.5)]' : 'w-1.5 h-1.5 bg-white/30 hover:bg-white/60'}`}
+              className={`transition-all duration-300 rounded-full ${mobileTab === 'lyrics' ? 'w-3.5 h-1.5' : 'w-1.5 h-1.5 bg-white/30 hover:bg-white/60'}`}
+              style={mobileTab === 'lyrics' ? {
+                backgroundColor: ambientPalette.themeColor,
+                boxShadow: `0 0 8px ${ambientPalette.glowColor}`
+              } : undefined}
               title="完整歌词"
             />
           </div>
 
-          {/* 右侧：快速切换视图按钮 (正圆形 SVG 图标) */}
+          {/* 右侧：快速切换视图按钮 (正圆形 SVG 图标，自适应封面色) */}
           <button
             onClick={() => setMobileTab(mobileTab === 'cover' ? 'lyrics' : 'cover')}
             className="w-8 h-8 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 border border-white/15 text-gray-200 active:scale-90 transition-all shadow-sm"
@@ -472,7 +600,10 @@ const App: React.FC = () => {
                 height="18" 
                 viewBox="0 0 24 24" 
                 fill="none" 
-                className="text-green-400 drop-shadow-[0_0_6px_rgba(74,222,128,0.4)]"
+                style={{ 
+                  color: ambientPalette.themeColor, 
+                  filter: `drop-shadow(0 0 6px ${ambientPalette.glowColor})` 
+                }}
               >
                 <rect x="2.5" y="2.5" width="19" height="19" rx="5.5" stroke="currentColor" strokeWidth="2" />
                 <text 
@@ -491,8 +622,12 @@ const App: React.FC = () => {
             ) : (
               <Disc3 
                 size={16} 
-                className="text-green-400 animate-[spin_6s_linear_infinite]" 
-                style={{ animationPlayState: isPlaying ? 'running' : 'paused' }}
+                style={{ 
+                  color: ambientPalette.themeColor, 
+                  filter: `drop-shadow(0 0 6px ${ambientPalette.glowColor})`,
+                  animationPlayState: isPlaying ? 'running' : 'paused' 
+                }}
+                className="animate-[spin_6s_linear_infinite]" 
               />
             )}
           </button>
@@ -530,15 +665,20 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* 右侧：歌词 */}
+            {/* 右侧：歌词 (随专辑色自适应) */}
             <div className="flex-1 w-full min-h-0 relative overflow-hidden">
               <LyricsView 
-                  lyrics={parsedLyrics} 
-                  currentTime={currentTime} 
-                  onLyricClick={handleSeek}
-                  showTranslation={showTranslation}
-                  onToggleTranslation={() => setShowTranslation(v => !v)}
-                  hasTranslation={hasTranslation}
+                lyrics={parsedLyrics} 
+                currentTime={currentTime} 
+                onLyricClick={handleSeek}
+                showTranslation={showTranslation}
+                onToggleTranslation={handleToggleTranslation}
+                hasTranslation={hasTranslation}
+                themeColor={ambientPalette.themeColor}
+                accentColor={ambientPalette.accentColor}
+                glowColor={ambientPalette.glowColor}
+                buttonBg={ambientPalette.buttonBg}
+                buttonBorder={ambientPalette.buttonBorder}
               />
             </div>
           </div>
@@ -589,7 +729,7 @@ const App: React.FC = () => {
                         <img 
                           src={currentSong.cover} 
                           alt={currentSong.name} 
-                          className="w-full h-full object-cover" 
+                                className="w-full h-full object-cover" 
                           draggable={false} 
                         />
                         {/* 中心轴孔 */}
@@ -617,28 +757,38 @@ const App: React.FC = () => {
                           pauseDuration={2500}
                         />
                       </div>
-                      <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-white/10 text-green-400/90 rounded border border-white/10 tracking-wider shrink-0">
-                        SQ
+                      <span 
+                        className="px-1.5 py-0.2 text-[9px] font-semibold bg-white/10 rounded border border-white/10 tracking-wider shrink-0 font-mono transition-colors"
+                        style={{ color: ambientPalette.themeColor }}
+                      >
+                        {audioQuality.sampleRate}
                       </span>
-                      <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-white/10 text-gray-300 rounded border border-white/10 shrink-0">
-                        沉浸音效
+                      <span className="px-1.5 py-0.2 text-[9px] font-semibold bg-white/10 text-gray-300 rounded border border-white/10 shrink-0 font-mono">
+                        {audioQuality.bitrate}
                       </span>
                     </div>
                   </div>
                 </div>
 
-                {/* 3. 单行歌词展示栏 (支持走马灯与点击跳转完整歌词) */}
+                {/* 3. 单行歌词展示栏 (自适应色彩，支持走马灯与点击跳转完整歌词) */}
                 <div className="w-full px-2 mt-1.5 shrink-0">
                   <div 
                     onClick={() => setMobileTab('lyrics')}
                     className="w-full flex items-center justify-between px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 backdrop-blur-md cursor-pointer hover:bg-white/10 active:scale-98 transition-all group"
                   >
                     <div className="flex items-center gap-2 overflow-hidden flex-1 min-w-0 pr-2">
-                      <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse shrink-0" />
+                      <span 
+                        className="w-2 h-2 rounded-full animate-pulse shrink-0 transition-colors" 
+                        style={{ 
+                          backgroundColor: ambientPalette.themeColor,
+                          boxShadow: `0 0 8px ${ambientPalette.glowColor}`
+                        }}
+                      />
                       <div className="flex-1 min-w-0 overflow-hidden">
                         <MarqueeText
                           text={currentLyricText}
-                          className="text-xs sm:text-sm font-medium text-green-300 group-hover:text-green-200 transition-colors"
+                          className="text-xs sm:text-sm font-medium transition-colors"
+                          style={{ color: ambientPalette.themeColor }}
                           speed={30}
                           pauseDuration={2000}
                         />
@@ -667,10 +817,16 @@ const App: React.FC = () => {
                               step="0.01" 
                               value={volume}
                               onChange={(e) => setVolume(Number(e.target.value))}
-                              className="absolute w-28 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white hover:accent-green-400 -rotate-90 origin-center"
+                              style={{ accentColor: ambientPalette.themeColor }}
+                              className="absolute w-28 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer -rotate-90 origin-center"
                             />
                           </div>
-                          <div className="text-[10px] font-mono text-green-400 font-bold">{Math.round(volume * 100)}%</div>
+                          <div 
+                            className="text-[10px] font-mono font-bold transition-colors"
+                            style={{ color: ambientPalette.themeColor }}
+                          >
+                            {Math.round(volume * 100)}%
+                          </div>
                         </div>
                       </>
                     )}
@@ -683,15 +839,21 @@ const App: React.FC = () => {
                     </button>
                   </div>
 
-                  {/* 移动端黑胶视图下外部翻译按钮 (仅在存在译文时显示，居中/右侧自然分布) */}
+                  {/* 移动端黑胶视图下外部翻译按钮 (随封面自适应色彩) */}
                   {hasTranslation ? (
                     <button 
-                      onClick={() => setShowTranslation(v => !v)}
-                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all active:scale-95 shadow-sm ${
+                      onClick={handleToggleTranslation}
+                      className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold border transition-all active:scale-95 ${
                         showTranslation 
-                          ? 'bg-green-500/20 text-green-300 border-green-500/40 shadow-green-500/10' 
+                          ? 'shadow-sm' 
                           : 'bg-white/5 text-gray-400 border-white/10 hover:text-white'
                       }`}
+                      style={showTranslation ? {
+                        backgroundColor: ambientPalette.buttonBg,
+                        color: ambientPalette.accentColor,
+                        borderColor: ambientPalette.buttonBorder,
+                        boxShadow: `0 0 10px ${ambientPalette.glowColor}`
+                      } : undefined}
                       title={showTranslation ? "关闭歌词翻译" : "开启歌词翻译"}
                     >
                       <TranslateBadgeIcon active={showTranslation} size={14} />
@@ -712,7 +874,8 @@ const App: React.FC = () => {
                                 setPlaybackRate(rate);
                                 setIsSpeedMenuOpen(false);
                               }}
-                              className={`px-0 py-1.5 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
+                              style={playbackRate === rate ? { color: ambientPalette.themeColor } : undefined}
+                              className={`px-0 py-1.5 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'font-black' : 'text-gray-400 hover:text-white'}`}
                             >
                               {rate}x
                             </button>
@@ -725,7 +888,12 @@ const App: React.FC = () => {
                       className="flex items-center gap-1 px-3 py-1 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 active:scale-95 transition-all font-mono text-[11px]"
                     >
                       <span>倍速</span>
-                      <span className="text-green-400 font-bold">{playbackRate}x</span>
+                      <span 
+                        className="font-bold transition-colors"
+                        style={{ color: ambientPalette.themeColor }}
+                      >
+                        {playbackRate}x
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -742,12 +910,12 @@ const App: React.FC = () => {
                     <img 
                       src={currentSong.cover} 
                       alt={currentSong.name} 
-                      className="w-10 h-10 rounded-xl object-cover shadow-md border border-white/15 shrink-0 group-hover:scale-105 transition-transform" 
+                        className="w-10 h-10 rounded-xl object-cover shadow-md border border-white/15 shrink-0 group-hover:scale-105 transition-transform" 
                     />
                     <div className="overflow-hidden flex-1 min-w-0">
                       <MarqueeText
                         text={currentSong.name}
-                        className="text-sm font-bold text-white group-hover:text-green-300 transition-colors"
+                        className="text-sm font-bold text-white transition-colors"
                         speed={28}
                         pauseDuration={2200}
                       />
@@ -767,15 +935,20 @@ const App: React.FC = () => {
                   </div>
                 </div>
 
-                {/* 完整歌词滚动视图 */}
+                {/* 完整歌词滚动视图 (自适应色彩) */}
                 <div className="flex-1 w-full min-h-0 relative overflow-hidden">
                   <LyricsView 
                     lyrics={parsedLyrics} 
                     currentTime={currentTime} 
                     onLyricClick={handleSeek}
                     showTranslation={showTranslation}
-                    onToggleTranslation={() => setShowTranslation(v => !v)}
+                    onToggleTranslation={handleToggleTranslation}
                     hasTranslation={hasTranslation}
+                    themeColor={ambientPalette.themeColor}
+                    accentColor={ambientPalette.accentColor}
+                    glowColor={ambientPalette.glowColor}
+                    buttonBg={ambientPalette.buttonBg}
+                    buttonBorder={ambientPalette.buttonBorder}
                   />
                 </div>
               </div>
@@ -788,20 +961,22 @@ const App: React.FC = () => {
       <div className="fixed bottom-0 left-0 right-0 z-30 bg-black/90 backdrop-blur-2xl border-t border-white/10 pt-2 pb-[max(1.25rem,env(safe-area-inset-bottom))] px-3 sm:px-4 md:px-8 shadow-2xl">
          <div className="max-w-7xl mx-auto flex flex-col gap-2 md:gap-3">
              
-             {/* 进度条 */}
+             {/* 进度条 (随专辑封面色彩自适应) */}
              <ProgressBar 
                 currentTime={currentTime} 
                 duration={duration} 
                 onSeek={handleSeek} 
+                themeColor={ambientPalette.themeColor}
+                glowColor={ambientPalette.glowColor}
              />
 
-             {/* ===================== 桌面端播放器主控 (保持原样不变) ===================== */}
+             {/* ===================== 桌面端播放器主控 ===================== */}
              <div className="hidden md:flex items-center justify-between gap-2 w-full">
                  {/* 左侧：歌曲信息 */}
                  <div className="flex w-1/3 items-center gap-4 justify-start">
                     <img 
                       src={currentSong.cover} 
-                      className="w-14 h-14 rounded-lg bg-gray-800 object-cover border border-white/10" 
+                        className="w-14 h-14 rounded-lg bg-gray-800 object-cover border border-white/10" 
                       alt="mini cover"
                       draggable={false}
                     />
@@ -819,6 +994,7 @@ const App: React.FC = () => {
                         onNext={handleNext} 
                         onPrev={handlePrev}
                         playMode={playMode}
+                        themeColor={ambientPalette.themeColor}
                     />
                  </div>
 
@@ -837,7 +1013,8 @@ const App: React.FC = () => {
                                                 setPlaybackRate(rate);
                                                 setIsSpeedMenuOpen(false);
                                             }}
-                                            className={`px-0 py-2 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'text-green-400' : 'text-gray-400 hover:text-white'}`}
+                                            style={playbackRate === rate ? { color: ambientPalette.themeColor } : undefined}
+                                            className={`px-0 py-2 text-xs font-bold font-mono hover:bg-white/10 transition-colors text-center w-full ${playbackRate === rate ? 'font-black' : 'text-gray-400 hover:text-white'}`}
                                         >
                                             {rate}x
                                         </button>
@@ -854,16 +1031,28 @@ const App: React.FC = () => {
                         </button>
                     </div>
 
-                    {/* 循环模式 */}
+                    {/* 循环模式 (自适应高亮色) */}
                     <button 
                         onClick={togglePlayMode}
                         className="p-2 text-gray-400 hover:text-white transition-colors duration-200 hover:bg-white/10 rounded-full"
                         title="切换播放模式"
                     >
                         {playMode === PlayMode.LOOP ? (
-                            <Repeat1 size={20} className="text-green-400" />
+                            <Repeat1 
+                              size={20} 
+                              style={{ 
+                                color: ambientPalette.themeColor, 
+                                filter: `drop-shadow(0 0 6px ${ambientPalette.glowColor})` 
+                              }} 
+                            />
                         ) : playMode === PlayMode.SHUFFLE ? (
-                            <Shuffle size={20} className="text-green-400" />
+                            <Shuffle 
+                              size={20} 
+                              style={{ 
+                                color: ambientPalette.themeColor, 
+                                filter: `drop-shadow(0 0 6px ${ambientPalette.glowColor})` 
+                              }} 
+                            />
                         ) : (
                             <Repeat size={20} />
                         )}
@@ -881,7 +1070,8 @@ const App: React.FC = () => {
                             step="0.01" 
                             value={volume}
                             onChange={(e) => setVolume(Number(e.target.value))}
-                            className="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer accent-white hover:accent-green-400"
+                            style={{ accentColor: ambientPalette.themeColor }}
+                            className="w-24 h-1 bg-gray-600 rounded-lg appearance-none cursor-pointer"
                         />
                     </div>
 
@@ -898,16 +1088,28 @@ const App: React.FC = () => {
 
              {/* ===================== 移动端播放器主控 ===================== */}
              <div className="flex md:hidden items-center justify-between w-full px-2">
-                 {/* 1. 播放模式切换 (顺序/单曲循环/随机) */}
+                 {/* 1. 播放模式切换 (顺序/单曲循环/随机，自适应高亮色) */}
                  <button 
                      onClick={togglePlayMode}
                      className="p-2.5 text-gray-400 hover:text-white transition-all active:scale-90 rounded-full hover:bg-white/10"
                      title="切换播放模式"
                  >
                      {playMode === PlayMode.LOOP ? (
-                         <Repeat1 size={22} className="text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+                         <Repeat1 
+                           size={22} 
+                           style={{ 
+                             color: ambientPalette.themeColor, 
+                             filter: `drop-shadow(0 0 8px ${ambientPalette.glowColor})` 
+                           }} 
+                         />
                      ) : playMode === PlayMode.SHUFFLE ? (
-                         <Shuffle size={22} className="text-green-400 drop-shadow-[0_0_8px_rgba(74,222,128,0.5)]" />
+                         <Shuffle 
+                           size={22} 
+                           style={{ 
+                             color: ambientPalette.themeColor, 
+                             filter: `drop-shadow(0 0 8px ${ambientPalette.glowColor})` 
+                           }} 
+                         />
                      ) : (
                          <Repeat size={22} />
                      )}
@@ -925,7 +1127,10 @@ const App: React.FC = () => {
                  {/* 3. 播放 / 暂停 */}
                  <button 
                      onClick={handlePlayPause}
-                     className="bg-white text-black rounded-full p-4 hover:scale-105 transition-transform active:scale-95 shadow-xl shadow-white/20 mx-1"
+                     className="bg-white text-black rounded-full p-4 hover:scale-105 transition-transform active:scale-95 shadow-xl mx-1"
+                     style={{ 
+                       boxShadow: isPlaying ? `0 0 24px ${ambientPalette.glowColor}` : '0 10px 25px rgba(255,255,255,0.15)' 
+                     }}
                      title={isPlaying ? "暂停" : "播放"}
                  >
                      {isPlaying ? (
@@ -956,7 +1161,7 @@ const App: React.FC = () => {
          </div>
       </div>
 
-      {/* 播放列表模态框/抽屉 */}
+      {/* 播放列表模态框/抽屉 (自适应色调) */}
       <div 
         className={`
             fixed inset-y-0 right-0 w-full md:w-96 bg-gray-900/95 backdrop-blur-2xl z-50 transform transition-transform duration-300 ease-out shadow-2xl border-l border-white/10
@@ -978,6 +1183,8 @@ const App: React.FC = () => {
                  onToggleLock={handleToggleLock}
                  hiddenCount={hiddenSongsCount}
                  onOpenVaultEditor={() => setIsVaultEditorOpen(true)}
+                 themeColor={ambientPalette.themeColor}
+                 glowColor={ambientPalette.glowColor}
              />
         </div>
       </div>
@@ -1008,7 +1215,10 @@ const App: React.FC = () => {
       {showAutoPlayAlert && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">
           <div className="bg-gray-900 border border-white/10 rounded-2xl shadow-2xl max-w-sm w-full p-6 flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
-            <div className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 text-green-400">
+            <div 
+              className="w-16 h-16 bg-white/10 rounded-full flex items-center justify-center mb-4 transition-colors"
+              style={{ color: ambientPalette.themeColor }}
+            >
               <Play size={32} fill="currentColor" className="ml-1" />
             </div>
             <h3 className="text-xl font-bold text-white mb-2">准备就绪</h3>
@@ -1026,12 +1236,15 @@ const App: React.FC = () => {
       )}
 
       {/* 隐藏的音频元素 */}
+      {/* 降级为无 CORS 加载时更换 key 强制重建元素：
+          已被 Web Audio (createMediaElementSource) 接管的元素在无 CORS 时会被静音，必须换新元素才能保证有声 */}
       <audio
+        key={audioCrossOrigin ?? 'no-cors'}
         ref={audioRef}
-        crossOrigin="anonymous" 
+        crossOrigin={audioCrossOrigin}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleSongEnd}
-        onError={(e) => console.error("Audio Load Error:", e)}
+        onError={handleAudioError}
       />
     </div>
   );
