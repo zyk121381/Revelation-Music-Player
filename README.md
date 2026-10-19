@@ -5,6 +5,14 @@
 
 # ✔ [Revelation Music Player](https://github.com/zyk121381/Revelation-Music-Player)
 
+<div align="center">
+
+[![WakaTime](https://wakatime.com/badge/user/a2c9dcda-13d4-4457-81cb-c15737459130/project/11cc0095-c6c5-4076-849f-3cd5a0607434.svg)](https://wakatime.com/badge/user/a2c9dcda-13d4-4457-81cb-c15737459130/project/11cc0095-c6c5-4076-849f-3cd5a0607434) [![License](https://img.shields.io/github/license/zyk121381/Revelation-Music-Player)](https://github.com/zyk121381/Revelation-Music-Player/blob/main/LICENSE) [![Release](https://img.shields.io/github/v/release/zyk121381/Revelation-Music-Player)](https://github.com/zyk121381/Revelation-Music-Player/releases)
+
+*编码时长统计自 2026-10-19 17:38（UTC+8）起。*
+
+</div>
+
 一个使用 React 和 Tailwind CSS 构建的现代响应式音乐播放器，具有播放列表管理、歌词支持和沉浸式 UI 设计。
 
 ## ⭐功能
@@ -24,7 +32,7 @@
 - **播放控制：** 包括播放、暂停、上一曲、下一曲、播放速度和进度条控制。
 - **音量控制：** 支持音量调整（默认初始音量为70%）。
 - **URL 参数播放：** 支持通过 URL 参数播放自定义音乐和内置音乐。
-- ~**JSON API：** 用于获取实时音乐数据的API接口。~（已于1.0.3版本移除）
+- ~~**JSON API：** 用于获取实时音乐数据的API接口。~~（已于1.0.3版本移除）
 
 ## ⚡快速入门 / 📄文档
 

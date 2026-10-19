@@ -5,6 +5,14 @@
 
 # ✔ [Revelation Music Player](https://github.com/zyk121381/Revelation-Music-Player)
 
+<div align="center">
+
+[![WakaTime](https://wakatime.com/badge/user/a2c9dcda-13d4-4457-81cb-c15737459130/project/11cc0095-c6c5-4076-849f-3cd5a0607434.svg)](https://wakatime.com/badge/user/a2c9dcda-13d4-4457-81cb-c15737459130/project/11cc0095-c6c5-4076-849f-3cd5a0607434) [![License](https://img.shields.io/github/license/zyk121381/Revelation-Music-Player)](https://github.com/zyk121381/Revelation-Music-Player/blob/main/LICENSE) [![Release](https://img.shields.io/github/v/release/zyk121381/Revelation-Music-Player)](https://github.com/zyk121381/Revelation-Music-Player/releases)
+
+*Coding time tracked since Oct 19, 2026, 17:38 (UTC+8).*
+
+</div>
+
 A modern, responsive music player built with React and Tailwind CSS, featuring playlist management, lyrics support, and an immersive UI design.
 
 ## ⭐ Features
@@ -24,7 +32,7 @@ A modern, responsive music player built with React and Tailwind CSS, featuring p
 - **Playback Controls:** Includes play, pause, previous, next, and progress bar control.
 - **Volume Control:** Supports volume adjustment (default initial volume is 70%).
 - **URL Parameter Playback:** Supports playing custom music and built-in music via URL parameters.
-- ~**JSON API:** API interface for fetching real-time music data.~ (removed in version 1.0.3)
+- ~~**JSON API:** API interface for fetching real-time music data.~~ (removed in version 1.0.3)
 
 ## ⚡ Quick Start / 📄 Documentation
 

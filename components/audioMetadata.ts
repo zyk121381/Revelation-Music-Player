@@ -162,6 +162,15 @@ export async function getAudioMetadata(
     clearTimeout(timeoutId);
 
     if (response && response.ok) {
+      // 服务器不支持 Range 请求时会忽略 Range 头，返回 200 + 完整的音频文件。
+      // 此时若继续读取响应体，等于把整首歌再完整下载一遍（几 MB 到几十 MB），
+      // 在移动端会直接占满带宽、拖垮 <audio> 的流式加载，导致歌曲播放失败。
+      // 因此只接受 206 Partial Content，在读取 body 之前就中止，避免下载整首歌。
+      if (response.status !== 206) {
+        controller.abort();
+        return { sampleRate: '44.1kHz', bitrate: '320kbps' };
+      }
+
       let totalBytes: number | null = null;
       const contentRange = response.headers.get('content-range');
       if (contentRange) {

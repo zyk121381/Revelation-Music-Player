@@ -25,6 +25,10 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   const elapsedRef = useRef<HTMLSpanElement>(null);
   const [isDragging, setIsDragging] = useState(false);
   const isDraggingRef = useRef(false);
+  // 拖拽过程中的临时值：只驱动本组件与 DOM，不回写 App 的 currentTime，
+  // 避免每移动一像素就触发整页重渲染（歌词列表 + 平滑滚动动画会同时重启）
+  const [dragValue, setDragValue] = useState<number | null>(null);
+  const dragValueRef = useRef<number | null>(null);
 
   // 直接写 DOM：进度位置与时间码都不经过 state，因此不会触发 React 重渲染
   const applyProgress = (time: number) => {
@@ -63,12 +67,20 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
     if (elapsedRef.current) elapsedRef.current.textContent = formatTime(currentTime);
   }, [currentTime, duration]);
 
-  // 拖拽期间停止自动推进，松手后恢复（监听 window 避免手指滑出进度条后卡在拖拽态）
+  // 拖拽期间停止自动推进；松手时才把最终位置同步给播放器（只触发一次重渲染）
   useEffect(() => {
     if (!isDragging) return;
     const stopDrag = () => {
       isDraggingRef.current = false;
       setIsDragging(false);
+
+      const finalTime = dragValueRef.current;
+      dragValueRef.current = null;
+      setDragValue(null);
+
+      if (finalTime !== null) {
+        onSeek(finalTime);
+      }
     };
     window.addEventListener('pointerup', stopDrag);
     window.addEventListener('pointercancel', stopDrag);
@@ -76,12 +88,13 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
       window.removeEventListener('pointerup', stopDrag);
       window.removeEventListener('pointercancel', stopDrag);
     };
-  }, [isDragging]);
+  }, [isDragging, onSeek]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const time = Number(e.target.value);
-    applyProgress(time);
-    onSeek(time);
+    dragValueRef.current = time;
+    setDragValue(time);
+    applyProgress(time);        // 仅更新视觉，不通知 App
   };
 
   return (
@@ -107,7 +120,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
           type="range"
           min={0}
           max={duration || 0}
-          value={currentTime}
+          value={dragValue ?? currentTime}
           onChange={handleChange}
           onPointerDown={() => {
             isDraggingRef.current = true;

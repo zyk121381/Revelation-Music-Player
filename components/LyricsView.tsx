@@ -114,7 +114,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 ref={isActive ? activeLineRef : null}
                 onClick={() => onLyricClick && onLyricClick(line.time)}
                 className={`
-                  transition-all duration-300 ease-out cursor-pointer break-words px-1 md:px-3 text-left md:text-center origin-left md:origin-center
+                  transition-[transform,opacity] duration-300 ease-out cursor-pointer break-words px-1 md:px-3 text-left md:text-center origin-left md:origin-center
                   ${isActive 
                     ? 'scale-105 md:scale-110' 
                     : 'hover:scale-102'
@@ -127,15 +127,14 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 {/* 歌词原文 - 随专辑封面自适应色彩 */}
                 <p 
                   className={`
-                    transition-all duration-300
+                    transition-[color,opacity] duration-300
                     ${isActive 
                       ? 'text-xl md:text-2xl font-bold' 
                       : 'text-gray-400/50 text-base md:text-lg hover:text-white/80'
                     }
                   `}
                   style={isActive ? {
-                    color: themeColor,
-                    textShadow: `0 0 16px ${glowColor}`
+                    color: themeColor
                   } : undefined}
                 >
                   {line.text}
@@ -145,7 +144,7 @@ export const LyricsView: React.FC<LyricsViewProps> = ({
                 {showTranslation && line.translation && (
                   <p 
                     className={`
-                      mt-1.5 text-xs sm:text-sm md:text-base font-normal tracking-wide transition-all duration-300
+                      mt-1.5 text-xs sm:text-sm md:text-base font-normal tracking-wide transition-[color,opacity] duration-300
                       ${isActive 
                         ? 'drop-shadow-sm font-medium' 
                         : 'text-gray-400/40 hover:text-gray-300/60'

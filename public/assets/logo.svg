@@ -1,0 +1,30 @@
+<svg width="800" height="800" xmlns="http://www.w3.org/2000/svg" stroke="null" style="vector-effect: non-scaling-stroke;" version="1.1" preserveAspectRatio="none" class="svg-canvas">
+ <!--滤镜-->
+ <defs stroke="null" style="vector-effect: non-scaling-stroke;">
+  <linearGradient stroke="null" style="vector-effect: non-scaling-stroke;" y2="0.37149" x2="0.52275" y1="0.61174" x1="0.29586" id="svg_3">
+   <stop stroke="null" style="vector-effect: non-scaling-stroke;" stop-color="#A57F49" offset="0"/>
+   <stop stroke="null" style="vector-effect: non-scaling-stroke;" stop-color="#A57F49" offset="1"/>
+  </linearGradient>
+  <linearGradient stroke="null" style="vector-effect: non-scaling-stroke;" y2="0.37822" x2="0.12302" y1="0.58538" x1="0.72367" id="svg_2">
+   <stop stroke="null" style="vector-effect: non-scaling-stroke;" stop-color="#A57F49" offset="0"/>
+   <stop stroke="null" style="vector-effect: non-scaling-stroke;" stop-color="#A57F49" offset="1"/>
+  </linearGradient>
+ </defs>
+ <!-- 背景 -->
+ <!--元素-->
+ <g stroke="null">
+  <title stroke="null">Layer 1</title>
+  <g stroke="null" key="shape_hrHmSxA7St" ref="shape_hrHmSxA7St" id="shape_hrHmSxA7St">
+   <g stroke="null" id="svg_6" transform="translate(114.705 14.8131) scale(1 1)">
+    <!--普通元素-->
+    <rect stroke="null" id="svg_7" y="-26.95702" x="-127.00029" height="824.28788" width="824.59056" fill="rgba(0,0,0,0)"/>
+    <g stroke="null" transform="matrix(1.39621 0 0 1.39621 -20.0186 -16.0934)" y="-4.99999" x="-103" id="svg_23">
+     <svg stroke="null" data-parent="shape_hrHmSxA7St" preserveAspectRatio="none" class="style-removed" xml:space="preserve" enable-background="new 0 0 200 200" viewBox="0 -0.10500000417232513 200.04800415039062 199.9720001220703" height="570.37374" width="570.59052" y="2.2192" x="-66.62274" id="svg_1" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns="http://www.w3.org/2000/svg">
+      <path stroke="null" id="svg_8" stroke-width="0" d="m192.172,138.884c-5.584,13.192 -13.924,24.937 -24.29,34.513c-7.66,-6.178 -15.972,-12.08 -24.865,-17.568c-38.314,-23.657 -78.596,-34.286 -109.098,-31.271c22.45,4.511 46.934,14.165 70.666,28.816c16.661,10.29 31.289,22.014 43.403,34.334c-13.149,7.202 -28.094,11.537 -43.987,12.159c-2.068,-3.396 -4.231,-6.777 -6.507,-10.143c-25.244,-37.287 -57.624,-63.499 -86.679,-73.258c18.626,13.322 36.998,32.168 52.633,55.26c5.798,8.567 10.912,17.263 15.332,25.95c-45.03,-9.743 -78.78,-49.812 -78.78,-97.757c0,-9.459 1.315,-18.612 3.771,-27.289c18.045,-4.85 34.139,-9.106 47.249,-11.338c11.807,-2.01 24.172,-2.481 35.965,-0.06c22.677,4.656 17.339,18.555 3.741,29.285c-8.548,6.751 -18.875,11.164 -29.053,14.811c-19.993,7.171 -38.351,10.106 -32.424,10.69c46.835,4.614 100.391,3.488 145.538,17.016c5.902,1.768 11.869,3.82 17.385,5.85z" fill="url(#svg_3)" clip-rule="evenodd" fill-rule="evenodd"/>
+      <path stroke="null" id="svg_9" stroke-width="0" d="m100.025,-0.105c55.231,0 100.023,44.792 100.023,100.024c0,2.619 -0.102,5.212 -0.299,7.781c-41.062,-2.746 -102.034,-0.841 -102.034,-0.841c58.434,-42.418 29.805,-61.947 -8.112,-69.295c-11.782,-2.282 -23.772,-3.492 -35.776,-3.073c-17.045,0.597 -30.241,3.892 -30.115,4.091l-3.042,0.458c18.286,-23.797 47.028,-39.145 79.355,-39.145z" fill="url(#svg_2)" clip-rule="evenodd" fill-rule="evenodd"/>
+     </svg>
+    </g>
+   </g>
+  </g>
+ </g>
+</svg>

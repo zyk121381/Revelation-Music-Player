@@ -30,6 +30,11 @@ import {
   Disc3
 } from 'lucide-react';
 
+// 性能诊断开关：桌面端环境光由三个超大 blur 光晕（460~720px，blur 110~130px）组成，
+// 合成成本较高。若播放 / 滚动 / 拖动进度条出现卡顿，把这里改成 false 即可立即验证
+// 是否为环境光所致。该效果是 3.1.0 新增的，3.0.1 并不存在。
+const ENABLE_AMBIENT_LIGHTING = true;
+
 // 主应用组件
 const App: React.FC = () => {
   // 状态
@@ -273,12 +278,47 @@ const App: React.FC = () => {
 
   // --- 音频事件处理程序 ---
 
-  // 使用 audio 原生的 timeupdate 事件更新时间（播放时触发，暂停时自动停止）
-  const handleTimeUpdate = useCallback(() => {
-    if (audioRef.current) {
-      setCurrentTime(audioRef.current.currentTime);
+  // 使用 requestAnimationFrame 高精度追踪播放位置，但只在「歌词行切换」时才更新 state。
+  // 这样既保留 60fps 的行命中精度（timeupdate 仅 250ms 间隔会跳句），
+  // 又不会每帧触发整页重渲染：进度条与时间码已由 ProgressBar 内部 RAF 直接写 DOM 驱动，
+  // 这里的 state 只服务于歌词高亮与跳转。
+  useEffect(() => {
+    let animationFrameId: number;
+    let lastActiveIndex = -2;
+
+    const animate = () => {
+      const audio = audioRef.current;
+      if (audio && !audio.paused) {
+        const time = audio.currentTime;
+
+        // 歌词按时间升序，取最后一个已到时间的行
+        let activeIndex = -1;
+        for (let i = 0; i < parsedLyrics.length; i++) {
+          if (time >= parsedLyrics[i].time) {
+            activeIndex = i;
+          } else {
+            break;
+          }
+        }
+
+        if (activeIndex !== lastActiveIndex) {
+          lastActiveIndex = activeIndex;
+          setCurrentTime(time);
+        }
+      }
+      animationFrameId = requestAnimationFrame(animate);
+    };
+
+    if (isPlaying) {
+      animationFrameId = requestAnimationFrame(animate);
     }
-  }, []);
+
+    return () => {
+      if (animationFrameId) {
+        cancelAnimationFrame(animationFrameId);
+      }
+    };
+  }, [isPlaying, parsedLyrics]);
 
   const handleLoadedMetadata = () => {
     if (audioRef.current) {
@@ -439,6 +479,17 @@ const App: React.FC = () => {
     }
   }, [audioCrossOrigin]);
 
+  // 切歌时若此前被降级，恢复 CORS 模式与频谱开关。
+  // 音频加载失败（含 404、网络抖动）会被统一当作跨域拦截而降级，
+  // 若不恢复，一次失败会让之后所有歌曲都永久失去频谱，因此每首歌都重新给一次机会。
+  useEffect(() => {
+    if (isInitialAudioCrossOriginRef.current) return;
+    if (audioCrossOrigin === undefined) {
+      setAudioCrossOrigin('anonymous');
+      setVisualizerEnabled(true);
+    }
+  }, [currentSongIndex]);
+
   // 更新音量
   useEffect(() => {
     if (audioRef.current) {
@@ -505,7 +556,9 @@ const App: React.FC = () => {
       <div className="absolute inset-0 bg-black/40 z-0 pointer-events-none" />
 
       {/* 桌面端动态环境光 (随封面自适应流光) */}
-      <AmbientLighting palette={ambientPalette} isPlaying={isPlaying} />
+      {ENABLE_AMBIENT_LIGHTING && (
+        <AmbientLighting palette={ambientPalette} isPlaying={isPlaying} />
+      )}
 
       {/* 可视化效果（仅限桌面端）- 频谱条随封面主色调自适应，精确贴合底部控制栏顶部 */}
       {/* 音频降级为无 CORS 加载后无法接入频谱分析，此时隐藏频谱 */}
@@ -531,7 +584,7 @@ const App: React.FC = () => {
           title={mobileTab === 'lyrics' ? "点击返回唱片封面" : "Revelation's Music"}
         >
           <img 
-            src="https://telegraph-image-uqe.pages.dev/file/BQACAgUAAyEGAASupuQzAAM6aW6Rl0hr3GhPenfS1Ec-5oEJj7IAAp0dAAJKfnhX7lAt8rS8dj84BA.svg" 
+            src="/assets/logo.svg" 
             alt="Revelation Logo" 
             className="w-7 h-7 md:w-10 md:h-10 drop-shadow-[0_0_12px_rgba(255,255,255,0.5)] shrink-0"
             draggable={false}
@@ -1227,7 +1280,6 @@ const App: React.FC = () => {
         ref={audioRef}
         crossOrigin={audioCrossOrigin}
         onLoadedMetadata={handleLoadedMetadata}
-        onTimeUpdate={handleTimeUpdate}
         onEnded={handleSongEnd}
         onError={handleAudioError}
       />

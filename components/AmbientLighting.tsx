@@ -10,7 +10,7 @@ interface AmbientLightingProps {
  * 桌面端动态环境光 (Dynamic Ambient Lighting Canvas)
  * 提取当前专辑封面的色彩流光，在唱片背景与歌词背板后方生成呼吸式环境光晕
  */
-export const AmbientLighting: React.FC<AmbientLightingProps> = ({ palette, isPlaying }) => {
+const AmbientLightingBase: React.FC<AmbientLightingProps> = ({ palette, isPlaying }) => {
   return (
     <div className="hidden md:block absolute inset-0 pointer-events-none z-[2] overflow-hidden select-none">
       {/* 光晕 1：封面背部主光环 (与专辑封面联动呼应，带来立体悬浮质感与温和呼吸) */}
@@ -50,3 +50,7 @@ export const AmbientLighting: React.FC<AmbientLightingProps> = ({ palette, isPla
     </div>
   );
 };
+
+// 用 React.memo 隔离：currentTime 每帧 60fps 变化时，palette 与 isPlaying 未变就不重渲，
+// 避免每帧重新合成三个超大 blur 光晕（这是 3.1.0 新增组件变重后进度条/滚动卡顿的主因之一）
+export const AmbientLighting = React.memo(AmbientLightingBase);

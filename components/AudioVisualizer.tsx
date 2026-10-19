@@ -6,10 +6,10 @@ interface AudioVisualizerProps {
   themeRgb?: [number, number, number];
 }
 
-export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({ 
-  audioRef, 
-  isPlaying, 
-  themeRgb = [74, 222, 128] 
+const AudioVisualizerBase: React.FC<AudioVisualizerProps> = ({
+  audioRef,
+  isPlaying,
+  themeRgb = [74, 222, 128]
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -146,9 +146,13 @@ export const AudioVisualizer: React.FC<AudioVisualizerProps> = ({
   }, [isPlaying]);
 
   return (
-    <canvas 
-      ref={canvasRef} 
+    <canvas
+      ref={canvasRef}
       className="w-full h-full"
     />
   );
 };
+
+// 用 React.memo 隔离：currentTime 每帧 60fps 变化时，audioRef/isPlaying/themeRgb 未变就不重渲，
+// 避免频谱组件每帧重新走 React 协调与画布挂载路径
+export const AudioVisualizer = React.memo(AudioVisualizerBase);
